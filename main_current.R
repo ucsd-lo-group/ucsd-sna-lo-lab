@@ -36,69 +36,64 @@ cat("You will have the chance to tell R if your data has a header and will impor
 cat("You will also be prompted to decide if your data is directed, weighted, and if self-interactions are allowed\n")
 invisible(readline(prompt="Press [enter] to continue\n"))
 
+
 ######### Checks for Pre-requisite Libraries #########
 # Loads external script to check for package dependencies
 source('r-script-dependencies.R',echo = FALSE)
+
 
 ######### Data Import and User Input (Information Collection) #########
 # Asks user for a name for the project
 project_name <- readline("What is the name of your project?\t")
 
 # Asks user if data has header in imported data set
-headerprocess <- readline("Does your data have a header? Please enter 1 for TRUE or 0 for FALSE: \t")
-ifelse(headerprocess == 1, outcomeHeader <- TRUE, outcomeHeader <- FALSE)
+hasHeader <- (readline("Does your data have a header? Please enter 1 for TRUE or 0 for FALSE: \t") == 1)
 
 # Asks user to select the data to import
 cat("Please import your edge list \n")
 cat("Awaiting for user selection... \n")
-importedData <- read.csv(file.choose(), header = outcomeHeader)
+importedData <- read.csv(file.choose(), header = hasHeader)
 
-# Prompts user to state if data is directed and confirm with 1 or 0
-userInputdir <- readline("Is your data directed? Please enter 1 for TRUE or 0 for FALSE: \t")
-ifelse(userInputdir == 1, outcomeBool <- "TRUE", outcomeBool <- "FALSE")
+# Ask user directed or undirected graph
+isDirected <- (readline("Is your data directed? Please enter 1 for TRUE or 0 for FALSE: \t") == 1)
 
 # Imports data based on directionality
 # For no non-participants in network (Normal)
-g <- graph.data.frame(importedData, directed = outcomeBool)
+g <- graph.data.frame(importedData, directed = isDirected)
 
 # Asks user if there is a weight for the imported data list
-userInputweightaccept <- readline("Do you have a weighted list? Please enter 1 for YES or 0 for NO: \t")
+isWeighted <- (readline("Do you have a weighted list? Please enter 1 for YES or 0 for NO: \t") == 1)
 # Based on user prompt, script will ask user to select file for list
 
-# If user states that there is no weighted list, then script will skip all Weighted sections
-if(userInputweightaccept == 1)
+# Weighted sections need weighted list
+if(isWeighted)
 {
   cat("Please import your weight list \n")
   cat("Awaiting for user selection... \n")
-  importedData_weight <- read.csv(file.choose(), header = outcomeHeader)
-}
-# Converts user input list to numeric value
-# Creates an attribute for weight
-if(userInputweightaccept == 1)
-{
+  importedData_weight <- read.csv(file.choose(), header = hasHeader)
+
+  # Converts user input list to numeric value
+  # Creates an attribute for weight
   g_weight <- unlist(importedData_weight)
   E(g)$weight <- g_weight
 }
 
-# Checks if the graph is weighted
-graph_weighted <- is.weighted(g)
-
 # Checks if self-interactions in the network are allowed
 cat("Are self-interactions allowed in your network diagram? \n")
-userInputselfinteract <- readline("Please enter 1 for YES or 0 for NO: \t")
-ifelse(userInputselfinteract == 1, self_interact_permission <- "TRUE", self_interact_permission <- "FALSE")
+hasSelfInteractions <- (readline("Please enter 1 for YES or 0 for NO: \t") == 1)
+
+
 
 # Creates Graph Adjacency Matrix
-if(userInputweightaccept == 1){
+if(hasSelfInteractions) {
   graphadj <- as_adjacency_matrix(g, attr = "weight")
-  outcome_weight <- "TRUE"
-}
-if(userInputweightaccept == 0){
+  outcome_weight <- TRUE
+} else {
   graphadj <- as_adjacency_matrix(g)
-  outcome_weight <- "FALSE"
+  outcome_weight <- FALSE
 }
-ifelse(userInputdir ==1, outcome <-"directed",outcome <- "undirected")
-graphedadj <- graph.adjacency(graphadj, mode = outcome, weighted = outcome_weight)
+dirType <- ifelse(isDirected, "directed", "undirected")
+graphedadj <- graph.adjacency(graphadj, mode = dirType, weighted = outcome_weight)
 
 # Prompts User to select a graph Projection and prompts for graphing
 # Other Graph Projections that can be used
@@ -107,52 +102,51 @@ graphedadj <- graph.adjacency(graphadj, mode = outcome, weighted = outcome_weigh
 # layout.reingold.tilford
 # layout.fruchterman.reingold
 # layout.bipartite
-if(userInputdir == 1)
+if(isDirected && hasSelfInteractions)
 {
-  if(userInputselfinteract == 1)
-  {
-    cat("Because of the conditions you have selected, it is recommended that you do not plot your network.\n")
-    cat("Errors may result requiring you to start the script again from source. \n")
-    graphrequest_approval <- readline("Are you sure you want to proceed? Please enter 1 for YES or 0 for NO\t")
-  }
+  cat("Because of the conditions you have selected, it is recommended that you do not plot your network.\n")
+  cat("Errors may result requiring you to start the script again from source. \n")
+  graphrequest_approval <- readline("Are you sure you want to proceed? Please enter 1 for YES or 0 for NO\t")
 }
-if(userInputselfinteract == 0)
+
+if(!hasSelfInteractions)
 {
   graphrequest_approval <- readline("Do you want to plot your network? Please enter 1 for YES or 0 for NO\t")
 }
+
 if(graphrequest_approval == 1)
 {
-cat("Please select your graph projection that you want to plot. Options include: \n")
-cat("Fruchterman Reingold = 0 (Default)\n")
-cat("Kamada Kawai = 1\n")
-cat("Reingold Tilfold = 2\n")
-cat("Bipartite = 3\n")
-cat("Awaiting for user selection... \n")
-graph_projection_input <- readline("Selection:  \t")
-if(graph_projection_input == 0)
-{
-  graph_layout_input = layout.fruchterman.reingold
-  graph_layout_select = "Fruchterman Reingold"
-}
-if(graph_projection_input == 1)
-{
-  graph_layout_input = layout.kamada.kawai
-  graph_layout_select = "Kamada Kawai"
-}
-if(graph_projection_input == 2)
-{
-  graph_layout_input = layout.reingold.tilford
-  graph_layout_select = "Reingold Tilford"
-}
-if(graph_projection_input == 3)
-{
-  graph_layout_input = layout.bipartite
-  graph_layout_select = "Bipartite"
-}
+  cat("Please select your graph projection that you want to plot. Options include: \n")
+  cat("Fruchterman Reingold = 0 (Default)\n")
+  cat("Kamada Kawai = 1\n")
+  cat("Reingold Tilfold = 2\n")
+  cat("Bipartite = 3\n")
+  cat("Awaiting for user selection... \n")
+  graph_projection_input <- readline("Selection:  \t")
+  if(graph_projection_input == 0)
+  {
+    graph_layout_input = layout.fruchterman.reingold
+    graph_layout_select = "Fruchterman Reingold"
+  }
+  if(graph_projection_input == 1)
+  {
+    graph_layout_input = layout.kamada.kawai
+    graph_layout_select = "Kamada Kawai"
+  }
+  if(graph_projection_input == 2)
+  {
+    graph_layout_input = layout.reingold.tilford
+    graph_layout_select = "Reingold Tilford"
+  }
+  if(graph_projection_input == 3)
+  {
+    graph_layout_input = layout.bipartite
+    graph_layout_select = "Bipartite"
+  }
 
-# Creates Plot of Social Network Graph based on selected projection
-plot_raw <- plot(graphedadj, layout = graph_layout_input, edge.width =E(g)$weight, edge.color = "black", edge.curved = FALSE)
-title(project_name)
+  # Creates Plot of Social Network Graph based on selected projection
+  plot_raw <- plot(graphedadj, layout = graph_layout_input, edge.width =E(g)$weight, edge.color = "black", edge.curved = FALSE)
+  title(project_name)
 }
 
 # Progress Check cat Call
@@ -163,7 +157,7 @@ cat("One Moment Please... The cats are working...\n")
 nedge <- ecount(g)
 
 # Edge Weighted Count
-if(userInputweightaccept==1)
+if(isWeighted)
 {
   nedge_weighted <- sum(importedData_weight)
 }
@@ -171,7 +165,7 @@ if(userInputweightaccept==1)
 nnode <- gorder(g)
 
 # Density (with self interactions allowed, user prompt)
-ifelse(userInputdir ==1, den <- edge_density(g, loops=self_interact_permission), den <- (edge_density(g, loops=self_interact_permission)/2))
+ifelse(isDirected, den <- edge_density(g, loops=hasSelfInteractions), den <- (edge_density(g, loops=hasSelfInteractions)/2))
 
 # Degrees of all nodes
 inoutdeg <- degree(g)
@@ -186,7 +180,7 @@ degavg <- (mean(degree(g))/2)
 avg_path <- average.path.length(g)
 
 # Diameter of graph
-diam_longest <- diameter(g, directed = outcomeBool)
+diam_longest <- diameter(g, directed = isDirected)
 
 # Reciprocity of Network
 recip <- reciprocity(g, mode = "default")
@@ -205,26 +199,26 @@ membershipvec <- cluster_walktrap(g)
 submod <- modularity(membershipvec)
 
 # Calculate modularity can be calculated based on graph directionality (must be undirected)
-if(userInputdir == 0)
+if(!isDirected)
 {
-  if(userInputweightaccept==1)
-    {
+  if(isWeighted)
+  {
     relsubmod <- modularity(g, membership(membershipvec), weights = g_weight)
-    }
+  }
   relsubmod <- modularity(g, membership(membershipvec))
 }
 
 # Get.Graph Diameter
-get_graph_diameter <- get.diameter(g, directed = outcomeBool)
+get_graph_diameter <- get.diameter(g, directed = isDirected)
 
 ######### Centrality of Network Members #########
 central <- centr_degree(g, mode = c("all", "out", "in", "total"), loops = FALSE, normalized = TRUE)
 
 # Centrality based on Eigenvector Centrality
-centeigen <- centr_eigen(g,directed = userInputdir, scale = TRUE, normalized = TRUE)
+centeigen <- centr_eigen(g,directed = isDirected, scale = TRUE, normalized = TRUE)
 
 # Centrality based on Betweenness
-centbtwn <- centralization.betweenness(g, directed = userInputdir, normalized = TRUE)
+centbtwn <- centralization.betweenness(g, directed = isDirected, normalized = TRUE)
 
 # Articulation Points List 
 # Articuation points or cut vertices are vertices whose removal increases the number of connected components in a graph.
@@ -235,65 +229,65 @@ artpoint <- articulation.points(g)
 pre_check_clique_pres <- count_max_cliques(g)
 if(pre_check_clique_pres >=2)
 {
-# Creates overview of possible cliques in network, Overall Subgraphs of networks
-overview_clique_table <- table(sapply(cliques(g),length))
+  # Creates overview of possible cliques in network, Overall Subgraphs of networks
+  overview_clique_table <- table(sapply(cliques(g),length))
 
-# Maximal cliques possible
-# Top row is size of cliques and bottom is number of groups of mentioned size
-maximal_clique_table <- table(sapply(maximal.cliques(g), length))
+  # Maximal cliques possible
+  # Top row is size of cliques and bottom is number of groups of mentioned size
+  maximal_clique_table <- table(sapply(maximal.cliques(g), length))
 
-# Generate list members of possible people in subgroup
-# Determines the maximal possible clique count in the dataset
-maximal_clique_count <- maximal.cliques.count(g)
+  # Generate list members of possible people in subgroup
+  # Determines the maximal possible clique count in the dataset
+  maximal_clique_count <- maximal.cliques.count(g)
 
-# Does loop function for each group to output members list
-# Function is under Summary of Variables for Analysis because of print function required
+  # Does loop function for each group to output members list
+  # Function is under Summary of Variables for Analysis because of print function required
 
-# Determines core membranes of the group
-cores <- graph.coreness(g)
+  # Determines core membranes of the group
+  cores <- graph.coreness(g)
 
-# Determines symmetry of the group
-# Generates simplified data of graph with no loops or multiple edges
-graph_symet_pre <- simplify(g)
-# Creates list of census of how symmetric the graph is 
-graph_symet <- dyad.census(graph_symet_pre)
+  # Determines symmetry of the group
+  # Generates simplified data of graph with no loops or multiple edges
+  graph_symet_pre <- simplify(g)
+  # Creates list of census of how symmetric the graph is 
+  graph_symet <- dyad.census(graph_symet_pre)
 
-# Generates density of each of the relative subgroups found
-# Example Code
-#g_subden1 <- induced.subgraph(g,neighborhood(g,1,1)[[1]])
-#subgraphdens <- graph.density(g_subden1)
+  # Generates density of each of the relative subgroups found
+  # Example Code
+  #g_subden1 <- induced.subgraph(g,neighborhood(g,1,1)[[1]])
+  #subgraphdens <- graph.density(g_subden1)
 
-# Generates RAW Cliques List
-rawcliques <- cliques(g)
+  # Generates RAW Cliques List
+  rawcliques <- cliques(g)
 
-# Graph Connectedness Census
-g_comps <- decompose.graph(g)
-g_comps_table <- table(sapply(g_comps,vcount))
+  # Graph Connectedness Census
+  g_comps <- decompose.graph(g)
+  g_comps_table <- table(sapply(g_comps,vcount))
 
-# Generates a list the neighborhood of each of the nodes adjacent to one another
-neigh_g <- neighborhood(g)
+  # Generates a list the neighborhood of each of the nodes adjacent to one another
+  neigh_g <- neighborhood(g)
 
-# Transitivity/Clustering Coefficients 
-# Measures the probability that the adjacent vertices of a vertex are connected
-#(Based on the number of triangles connected to vertex and triplets centered around vertex)
-# Transitivity of Local values
-g_trans_local <- transitivity(g,type = "local")
-# Transitivity of Global values
-g_trans_global <- transitivity(g,type = "global")
+  # Transitivity/Clustering Coefficients 
+  # Measures the probability that the adjacent vertices of a vertex are connected
+  #(Based on the number of triangles connected to vertex and triplets centered around vertex)
+  # Transitivity of Local values
+  g_trans_local <- transitivity(g,type = "local")
+  # Transitivity of Global values
+  g_trans_global <- transitivity(g,type = "global")
 
-######### Graphical Data Statistics ######### 
-A<-get.adjacency(g)
-g_network_pkg <- network::as.network(as.matrix(A),directed = TRUE)
-mystats <- formula(g_network_pkg ~ edges)
-sum_stats <- summary.statistics(mystats)
-g.ergm <- formula(g_network_pkg ~ edges + gwesp(log(3),fixed = TRUE))
-set.seed(42)
-g.ergm.fit <- ergm(g.ergm)
-anova_stat <- anova.ergm(g.ergm.fit)
-sum_ergm <- summary.ergm(g.ergm.fit)
-gof.g.ergm<- gof(g.ergm.fit)
-par(mfrow = c(1,3))
-plot(gof.g.ergm)
+  ######### Graphical Data Statistics ######### 
+  A<-get.adjacency(g)
+  g_network_pkg <- network::as.network(as.matrix(A),directed = TRUE)
+  mystats <- formula(g_network_pkg ~ edges)
+  sum_stats <- summary.statistics(mystats)
+  g.ergm <- formula(g_network_pkg ~ edges + gwesp(log(3),fixed = TRUE))
+  set.seed(42)
+  g.ergm.fit <- ergm(g.ergm)
+  anova_stat <- anova.ergm(g.ergm.fit)
+  sum_ergm <- summary.ergm(g.ergm.fit)
+  gof.g.ergm<- gof(g.ergm.fit)
+  par(mfrow = c(1,3))
+  plot(gof.g.ergm)
 
 } 
 # End of subgroups reporting section
@@ -337,15 +331,15 @@ cat("Name of Project: ", project_name, "\n")
 cat("Current Date and Time: ")
 print(Sys.time())
 cat("\n")
-cat("Weighted Graph: ", graph_weighted, "\n")
-cat("Self-Interactions Allowed: ", self_interact_permission, "\n")
+cat("Weighted Graph: ", isWeighted, "\n")
+cat("Self-Interactions Allowed: ", hasSelfInteractions, "\n")
 cat("Number of Nodes: ", nnode, "\n")
 cat("Number of Edges: ", nedge, "\n")
-if(userInputweightaccept==1)
+if(isWeighted)
 {
   cat("Weighted Edges: ",nedge_weighted, "\n")
 }
-cat("Graph Directed: ", outcome, "\n")
+cat("Graph Directed: ", dirType, "\n")
 cat("Network Density: ", den, "\n")
 cat("Network Diameter (Longest): ", diam_longest, "\n")
 cat("Network Diameter (All Short Possible): \n")
